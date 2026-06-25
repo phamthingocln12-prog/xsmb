@@ -1,19 +1,27 @@
-# Sử dụng hình ảnh PHP có sẵn Apache
 FROM php:8.1-apache
 
-# Cài đặt các thư viện cần thiết cho Laravel
-RUN apt-get update && apt-get install -y libzip-dev zip unzip git
-RUN docker-php-ext-install zip pdo_mysql
+# Cài đặt các phần mở rộng PHP cần thiết
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    git \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql zip opcache
 
-# Cấu hình Apache để chạy Laravel
+# Cấu hình Apache
 RUN a2enmod rewrite
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Copy toàn bộ code vào trong thùng Docker
 COPY . /var/www/html
-
-# Phân quyền
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Chạy composer install
-RUN composer install --optimize-autoloader --no-dev
+# Cài đặt Composer từ image chính thức
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Chạy composer install với quyền bỏ qua check platform (để tránh lỗi phiên bản)
+RUN composer install --optimize-autoloader --no-dev --ignore-platform-reqs
+
+# Expose cổng 80
+EXPOSE 80
